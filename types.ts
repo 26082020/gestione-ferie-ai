@@ -1,3 +1,4 @@
+
 export enum UserRole {
   EMPLOYEE = 'Dipendente',
   MANAGER = 'Manager',
@@ -36,4 +37,4 @@ export interface LeaveRequest {
   createdAt: number;
 }
 
-export type ViewState = 'dashboard' | 'calendar' | 'requests' | 'users';
+export type ViewState = 'dashboard' | 'calendar' | 'requests' | 'users' | 'settings';

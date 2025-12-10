@@ -109,10 +109,6 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, externalLogin }) =
             )}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-xs text-gray-400">
-          Demo: mario@azienda.it (admin) / luca@azienda.it (user)
-        </div>
       </div>
     </div>
   );

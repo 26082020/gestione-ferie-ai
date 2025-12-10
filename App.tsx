@@ -6,6 +6,7 @@ import { CalendarView } from './components/CalendarView';
 import { RequestList } from './components/RequestList';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
+import { AdminPanel } from './components/AdminPanel';
 import { MANAGER_EMAIL } from './services/emailService';
 import { api } from './services/api';
 
@@ -70,6 +71,19 @@ export default function App() {
       refreshData();
     } catch (error) {
       showNotification("Errore creazione utente.");
+    }
+  };
+
+  const handleDbReset = async () => {
+    try {
+      setLoading(true);
+      await api.resetDatabase();
+      await refreshData();
+      showNotification("Database resettato con successo.");
+    } catch (error) {
+      showNotification("Errore durante il reset del database.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -195,13 +209,22 @@ export default function App() {
           </button>
           
           {currentUser.role === UserRole.MANAGER && (
+            <>
+              <button 
+               onClick={() => setView('users')}
+               className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${view === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-slate-300 hover:bg-slate-800'}`}
+             >
+               <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+               Gestione Utenti
+             </button>
              <button 
-             onClick={() => setView('users')}
-             className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${view === 'users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-slate-300 hover:bg-slate-800'}`}
-           >
-             <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-             Gestione Utenti
-           </button>
+               onClick={() => setView('settings')}
+               className={`w-full flex items-center px-4 py-3 rounded-lg transition-colors ${view === 'settings' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'text-slate-300 hover:bg-slate-800'}`}
+             >
+               <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+               Impostazioni
+             </button>
+            </>
           )}
         </nav>
 
@@ -231,6 +254,7 @@ export default function App() {
                 {view === 'dashboard' ? 'Dashboard' : 
                  view === 'calendar' ? 'Calendario Team' : 
                  view === 'users' ? 'Gestione Utenti' :
+                 view === 'settings' ? 'Impostazioni Sistema' :
                  'Gestione Richieste'}
             </h2>
             <p className="text-gray-500 text-sm mt-1">{new Date().toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -253,13 +277,14 @@ export default function App() {
           {loading && (
              <div className="text-center py-10">
                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
-               <p className="mt-2 text-gray-500">Caricamento dati...</p>
+               <p className="mt-2 text-gray-500">Elaborazione in corso...</p>
              </div>
           )}
           {!loading && view === 'dashboard' && <Dashboard requests={requests} currentUser={currentUser} users={users} />}
           {!loading && view === 'calendar' && <CalendarView requests={requests} users={users} />}
           {!loading && view === 'requests' && <RequestList requests={requests} currentUser={currentUser} users={users} onUpdateStatus={handleUpdateStatus} />}
           {!loading && view === 'users' && currentUser.role === UserRole.MANAGER && <UserManagement users={users} onAddUser={handleAddUser} />}
+          {!loading && view === 'settings' && currentUser.role === UserRole.MANAGER && <AdminPanel requests={requests} users={users} onResetDb={handleDbReset} />}
         </div>
       </main>
 

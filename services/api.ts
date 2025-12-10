@@ -58,6 +58,14 @@ export const api = {
     if (!res.ok) throw new Error('Failed to update status');
   },
   
+  // ADMIN
+  resetDatabase: async (): Promise<void> => {
+    const res = await fetch(`${API_URL}/admin/reset`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to reset database');
+  },
+  
   // AI ANALYSIS
   analyzeConflicts: async (requests: LeaveRequest[], users: User[]): Promise<string> => {
     const res = await fetch(`${API_URL}/analyze`, {
