@@ -1,0 +1,5 @@
+{
+  "name": "Gestione Ferie AI",
+  "description": "Un'applicazione intelligente per la gestione delle ferie aziendali con approvazione manageriale, calendario condiviso e analisi dei conflitti basata su AI.",
+  "requestFramePermissions": []
+}
