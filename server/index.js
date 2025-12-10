@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { query, initDb } from './db.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import { GoogleGenAI } from "@google/genai";
+import fs from 'fs';
 
 dotenv.config();
 
@@ -21,14 +23,17 @@ app.use(express.json());
 // Initialize Database
 initDb();
 
-// Email Transporter (Configure vars in Render or .env)
+// Email Transporter
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // or your provider
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // e.g., your gmail
-    pass: process.env.EMAIL_PASS  // your app password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
+
+// Initialize Gemini AI (Backend Side)
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const sendEmail = async (to, subject, text) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -97,7 +102,6 @@ app.post('/api/users', async (req, res) => {
 // Get Requests
 app.get('/api/requests', async (req, res) => {
   try {
-    // We map snake_case db columns to camelCase for frontend consistency
     const result = await query(`
       SELECT 
         id, user_id as "userId", start_date as "startDate", end_date as "endDate", 
@@ -105,7 +109,6 @@ app.get('/api/requests', async (req, res) => {
       FROM leave_requests ORDER BY created_at DESC
     `);
     
-    // Format dates to simple strings YYYY-MM-DD to match frontend expectations
     const formatted = result.rows.map(r => ({
       ...r,
       startDate: new Date(r.startDate).toISOString().split('T')[0],
@@ -128,11 +131,9 @@ app.post('/api/requests', async (req, res) => {
       [id, userId, startDate, endDate, status, reason, createdAt]
     );
 
-    // Get user details for email
     const userRes = await query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userRes.rows[0];
 
-    // Email to Manager
     await sendEmail(
       'matteo.vizzani@rematarlazzi.it',
       `Nuova Richiesta Ferie: ${user.name}`,
@@ -153,7 +154,6 @@ app.put('/api/requests/:id', async (req, res) => {
   try {
     await query('UPDATE leave_requests SET status = $1 WHERE id = $2', [status, id]);
     
-    // Get request details for email
     const reqRes = await query('SELECT * FROM leave_requests WHERE id = $1', [id]);
     const request = reqRes.rows[0];
     
@@ -176,7 +176,50 @@ app.put('/api/requests/:id', async (req, res) => {
   }
 });
 
-// Send Custom Email (Frontend triggered notification helper)
+// AI Analysis Endpoint
+app.post('/api/analyze', async (req, res) => {
+  try {
+    const { requests, users } = req.body;
+    
+    // Filter for active requests
+    const activeRequests = requests.filter(
+      (r) => r.status === "Approvato" || r.status === "In Attesa"
+    );
+
+    // Simplify data
+    const scheduleData = activeRequests.map((req) => {
+      const user = users.find((u) => u.id === req.userId);
+      return {
+        employee: user?.name,
+        department: user?.department,
+        start: req.startDate,
+        end: req.endDate,
+        status: req.status,
+      };
+    });
+
+    const prompt = `
+      Sei un assistente HR intelligente. Analizza i seguenti dati sulle ferie dei dipendenti.
+      Identifica potenziali conflitti (troppe persone dello stesso dipartimento assenti contemporaneamente) 
+      o periodi critici. Sii conciso, professionale e utile. Parla in italiano.
+      
+      Dati:
+      ${JSON.stringify(scheduleData, null, 2)}
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    res.json({ analysis: response.text });
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    res.status(500).json({ error: "Errore analisi AI" });
+  }
+});
+
+// Send Custom Email
 app.post('/api/notify', async (req, res) => {
   const { to, subject, body } = req.body;
   try {
@@ -187,13 +230,31 @@ app.post('/api/notify', async (req, res) => {
   }
 });
 
-
 // Serve React Frontend (Production)
-// In production, Vite builds to 'dist' (or similar), so we serve that.
-app.use(express.static(path.join(__dirname, '../dist')));
+// FIX: Use process.cwd() to locate 'dist' folder reliably on Render
+const distPath = path.join(process.cwd(), 'dist');
 
+console.log('Serving static files from:', distPath);
+if (!fs.existsSync(distPath)) {
+  console.error('CRITICAL: dist folder not found! Build might have failed.');
+}
+
+app.use(express.static(distPath));
+
+// Fallback for SPA routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+  // If it's an API call that wasn't handled, return 404 json
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+
+  // Otherwise serve index.html
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(500).send('Errore Server: Frontend non trovato (dist/index.html mancante). Verifica i log di build.');
+  }
 });
 
 app.listen(PORT, () => {
