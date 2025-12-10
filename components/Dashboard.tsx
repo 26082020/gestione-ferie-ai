@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, LeaveRequest, RequestStatus, UserRole } from '../types';
-import { analyzeScheduleConflicts } from '../services/geminiService';
+import { api } from '../services/api';
 
 interface DashboardProps {
   requests: LeaveRequest[];
@@ -18,9 +18,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ requests, currentUser, use
 
   const handleAiAnalysis = async () => {
     setLoadingAi(true);
-    const result = await analyzeScheduleConflicts(requests, users);
-    setAiAnalysis(result);
-    setLoadingAi(false);
+    try {
+      const result = await api.analyzeConflicts(requests, users);
+      setAiAnalysis(result);
+    } catch (e) {
+      setAiAnalysis("Errore durante l'analisi.");
+    } finally {
+      setLoadingAi(false);
+    }
   };
 
   return (

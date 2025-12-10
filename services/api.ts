@@ -58,10 +58,20 @@ export const api = {
     if (!res.ok) throw new Error('Failed to update status');
   },
   
+  // AI ANALYSIS
+  analyzeConflicts: async (requests: LeaveRequest[], users: User[]): Promise<string> => {
+    const res = await fetch(`${API_URL}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests, users })
+    });
+    if (!res.ok) return "Impossibile completare l'analisi al momento.";
+    const data = await res.json();
+    return data.analysis;
+  },
+
   // NOTIFICATIONS (Direct Helper)
   sendNotification: async (to: string, subject: string, body: string): Promise<void> => {
-    // In our new backend logic, the backend usually handles emails automatically on triggers,
-    // but we keep this for custom frontend messages if needed.
     await fetch(`${API_URL}/notify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -7,7 +7,6 @@ import { query, initDb } from './db.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from "@google/genai";
-import fs from 'fs';
 
 dotenv.config();
 
@@ -231,30 +230,10 @@ app.post('/api/notify', async (req, res) => {
 });
 
 // Serve React Frontend (Production)
-// FIX: Use process.cwd() to locate 'dist' folder reliably on Render
-const distPath = path.join(process.cwd(), 'dist');
+app.use(express.static(path.join(__dirname, '../dist')));
 
-console.log('Serving static files from:', distPath);
-if (!fs.existsSync(distPath)) {
-  console.error('CRITICAL: dist folder not found! Build might have failed.');
-}
-
-app.use(express.static(distPath));
-
-// Fallback for SPA routing
 app.get('*', (req, res) => {
-  // If it's an API call that wasn't handled, return 404 json
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-
-  // Otherwise serve index.html
-  const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(500).send('Errore Server: Frontend non trovato (dist/index.html mancante). Verifica i log di build.');
-  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(PORT, () => {
